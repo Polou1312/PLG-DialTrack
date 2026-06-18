@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DialTrack - LocalStorage</title>
+<title>DialTrack - Cloud JSONbin</title>
 <style>
 body{font-family:Arial,sans-serif;background:#111;color:#eee;margin:0;min-height:100vh;display:flex}
 .sidebar{width:240px;background:#1b1b1b;padding:16px;box-sizing:border-box;border-right:1px solid #333;display:flex;flex-direction:column;justify-content:space-between}
@@ -28,14 +28,17 @@ input,select,textarea{width:100%;box-sizing:border-box;padding:10px;border-radiu
 .danger-btn{background:#721c24;color:#f8d7da;border:1px solid #f5c6cb;text-align:center;font-size:12px;opacity:0.7}
 .danger-btn:hover{opacity:1}
 .export-btn{background:#1e4620;border:1px solid #2e6931}
+.loading-indicator{display:none;background:#2d5d66;color:white;padding:8px;text-align:center;position:fixed;top:10px;right:10px;border-radius:5px;z-index:1000;}
 </style>
 </head>
 <body>
 
+<div id="loading" class="loading-indicator">🔄 Συγχρονισμός με Cloud...</div>
+
 <div class="sidebar">
 <div>
 <h2>DialTrack</h2>
-<div class="small" style="margin-bottom:20px">Τοπική Αποθήκευση Browser</div>
+<div class="small" style="margin-bottom:20px">Cloud Αποθήκευση (JSONbin)</div>
 <button class="navbtn active" data-view="dashboard">Dashboard</button>
 <button class="navbtn" data-view="campaigns">Καμπάνιες</button>
 <button class="navbtn" data-view="numbers">Αριθμοί</button>
@@ -122,22 +125,49 @@ input,select,textarea{width:100%;box-sizing:border-box;padding:10px;border-radiu
 </div>
 </div>
 <script>
-let campaigns = JSON.parse(localStorage.getItem('dt_campaigns')) || [];
-let numbers = JSON.parse(localStorage.getItem('dt_numbers')) || [];
-let history = JSON.parse(localStorage.getItem('dt_history')) || [];
+// ⚠️ ΑΝΤΙΚΑΤΑΣΤΗΣΤΕ ΜΕ ΤΑ ΔΙΚΑ ΣΑΣ ΣΤΟΙΧΕΙΑ ΑΠΟ ΤΟ JSONBIN.IO
+const BIN_ID = "6a33f6dfda38895dfed7609a"; 
+const API_KEY = "$2a$10$x0omY/rZCL3LJZTWSLMlKuC.B0EE3JWr9AV8ca9rbPQOiAafiKEmy"; 
+
+let campaigns = []; let numbers = []; let history = [];
 let editCampId = null; let editNumId = null;
 
-function saveData() {
-    localStorage.setItem('dt_campaigns', JSON.stringify(campaigns));
-    localStorage.setItem('dt_numbers', JSON.stringify(numbers));
-    localStorage.setItem('dt_history', JSON.stringify(history));
-    render();
+function showLoading(show) { document.getElementById('loading').style.display = show ? 'block' : 'none'; }
+
+async function loadData() {
+    showLoading(true);
+    try {
+        const response = await fetch(`https://jsonbin.io{BIN_ID}/latest`, {
+            headers: { "X-Master-Key": API_KEY }
+        });
+        const res = await response.json();
+        campaigns = res.record.campaigns || [];
+        numbers = res.record.numbers || [];
+        history = res.record.history || [];
+        render();
+    } catch (e) { alert("Σφάλμα σύνδεσης με το Cloud!"); console.error(e); }
+    showLoading(false);
 }
+
+async function saveData() {
+    showLoading(true);
+    try {
+        await fetch(`https://jsonbin.io{BIN_ID}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json", "X-Master-Key": API_KEY },
+            body: JSON.stringify({ campaigns, numbers, history })
+        });
+        render();
+    } catch (e) { alert("Αποτυχία αποθήκευσης στο Cloud!"); console.error(e); }
+    showLoading(false);
+}
+
 function fmtDate(iso) { return iso ? new Date(iso).toLocaleString('el-GR') : '—'; }
 function showView(id){
     document.querySelectorAll('.view').forEach(v=>v.classList.add('hidden')); document.getElementById(id).classList.remove('hidden');
     document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active', b.dataset.view===id));
 }
+
 function render(){
     document.getElementById('stats').innerHTML = `<div class="badge">Καμπάνιες: ${campaigns.length}</div><div class="badge">Αριθμοί: ${numbers.length}</div><div class="badge">Εγγραφές: ${history.length}</div>`;
     document.getElementById('campNumberSelect').innerHTML = ['<option value="">Επιλέξτε Αριθμό</option>'].concat(numbers.map(n => `<option value="${n.id}">${n.number} (${n.label || '—'})</option>`)).join('');
@@ -155,6 +185,7 @@ function render(){
         return `<tr><td>${fmtDate(h.created_at)}</td><td>${camp ? camp.name : 'Άγνωστη'}</td><td>${h.number || '—'}</td><td>${h.note || '—'}</td></tr>`;
     }).join('') || '<tr><td colspan="4">Δεν υπάρχει ιστορικό</td></tr>';
 }
+
 function saveCampaign(){
     const name = document.getElementById('campName').value.trim(); const code = document.getElementById('campCode').value.trim();
     const status = document.getElementById('campStatus').value; const note = document.getElementById('campNote').value.trim();
@@ -171,26 +202,30 @@ function saveCampaign(){
     }
     document.getElementById('campModal').classList.remove('open'); saveData();
 }
+
 function saveNumber(){
     const number = document.getElementById('numValue').value.trim(); const label = document.getElementById('numLabel').value.trim();
     if(!number){ alert('Βάλε αριθμό!'); return; }
     if(editNumId) { numbers = numbers.map(n => n.id === editNumId ? { ...n, number, label } : n); } else { numbers.push({ id: Date.now(), number, label }); }
     document.getElementById('numModal').classList.remove('open'); saveData();
 }
+
 function deleteItem(type, id) {
     if(!confirm('Σίγουρα διαγραφή;')) return;
     if(type === 'campaigns') { campaigns = campaigns.filter(c => c.id !== id); history = history.filter(h => h.camp_id !== id); } 
     else if(type === 'numbers') { campaigns = campaigns.map(c => c.active_num_id == id ? { ...c, active_num_id: null } : c); numbers = numbers.filter(n => n.id !== id); }
     saveData();
 }
+
 function exportHistoryToCSV() {
     if(history.length === 0) { alert('Το ιστορικό είναι άδειο!'); return; }
     let csv = "\uFEFF" + "Ημερομηνία,Καμπάνια,Αριθμός,Σημείωση\n";
     history.forEach(h => { const camp = campaigns.find(c => c.id === h.camp_id); csv += `"${fmtDate(h.created_at).replace(/,/g, '')}","${camp ? camp.name : 'Άγνωστη'}","${h.number || '—'}","${h.note || '—'}"\n`; });
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' }); const link = document.createElement("a");
-    link.setAttribute("href", URL.createObjectURL(blob)); link.setAttribute("download", `DialTrack_History_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute("href", URL.createObjectURL(blob)); link.setAttribute("download", `DialTrack_History_${new Date().toISOString().split('T')}.csv`);
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
 }
+
 function openEditCamp(id) {
     editCampId = id; const c = campaigns.find(x => x.id === id);
     document.getElementById('campTitle').innerText = "Επεξεργασία Καμπάνιας"; document.getElementById('campCode').value = c.code || '';
@@ -198,19 +233,21 @@ function openEditCamp(id) {
     document.getElementById('campNote').value = c.note || ''; document.getElementById('campNumberSelect').value = c.active_num_id || '';
     document.getElementById('campModal').classList.add('open');
 }
+
 function openEditNum(id) {
     editNumId = id; const n = numbers.find(x => x.id === id);
     document.getElementById('numTitle').innerText = "Επεξεργασία Αριθμού"; document.getElementById('numValue').value = n.number || '';
     document.getElementById('numLabel').value = n.label || ''; document.getElementById('numModal').classList.add('open');
 }
+
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.navbtn').forEach(btn => { if(btn.id !== 'resetDataBtn') btn.onclick = () => showView(btn.dataset.view); });
     document.getElementById('newCampBtn').onclick = () => { editCampId = null; document.getElementById('campTitle').innerText = "Νέα Καμπάνια"; document.getElementById('campCode').value = ''; document.getElementById('campName').value = ''; document.getElementById('campNote').value = ''; document.getElementById('campNumberSelect').value = ''; document.getElementById('campModal').classList.add('open'); };
     document.getElementById('newNumBtn').onclick = () => { editNumId = null; document.getElementById('numTitle').innerText = "Νέος Αριθμός"; document.getElementById('numValue').value = ''; document.getElementById('numLabel').value = ''; document.getElementById('numModal').classList.add('open'); };
     document.getElementById('closeCampBtn').onclick = () => document.getElementById('campModal').classList.remove('open'); document.getElementById('closeNumBtn').onclick = () => document.getElementById('numModal').classList.remove('open');
     document.getElementById('saveCampBtn').onclick = saveCampaign; document.getElementById('saveNumBtn').onclick = saveNumber; document.getElementById('exportHistoryBtn').onclick = exportHistoryToCSV;
-    document.getElementById('resetDataBtn').onclick = () => { if(confirm('⚠️ Διαγραφή όλων;')) { localStorage.clear(); campaigns = []; numbers = []; history = []; saveData(); alert('Έγινε καθαρισμός!'); } };
-    render();
+    document.getElementById('resetDataBtn').onclick = () => { if(confirm('⚠️ Διαγραφή όλων;')) { campaigns = []; numbers = []; history = []; saveData(); } };
+    loadData();
 });
 </script>
 </body>

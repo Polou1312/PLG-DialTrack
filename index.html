@@ -141,15 +141,13 @@ let numbers = [];
 let history = [];
 let editCampId = null;
 let editNumId = null;
-let listenersStarted = false;
 
 function fmtDate(d){ return d ? new Date(d).toLocaleString('el-GR') : '—'; }
 function campLabel(c){ return ${c.code ? c.code + ' - ' : ''}${c.name || ''}; }
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 function showView(id){
-document.querySelectorAll('.view').forEach(v=>v.
+document.querySelectorAll('.view').forEach(v=>v.classList.add('hidden'));
 
-classList.add('hidden'));
 document.getElementById(id).classList.remove('hidden');
 document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active', b.dataset.view===id));
 }
@@ -159,8 +157,8 @@ function numCampLabel(n){ const c=campaigns.find(x=>x.activeNumId===n.id); retur
 function render(){
 document.getElementById('stats').innerHTML = &lt;div class="badge"&gt;Καμπάνιες: ${campaigns.length}</div>
 <div class="badge">Αριθμοί: ${numbers.length}&lt;/div&gt; &lt;div class="badge"&gt;Εγγραφές: ${history.length}</div>
-
 `;
+
 
 document.getElementById('campaignGrid').innerHTML = campaigns.map(c=>{
 const num=currentNum(c);
@@ -172,9 +170,9 @@ return <div class="card"&gt; &lt;div&gt;&lt;strong&gt;${campLabel(c)}</strong></
 <button class="action-edit" data-id="
  
 {c.id}">Αλλαγή αριθμού</button>
-<button class="action-delete" data-type="campaign" data-id="$
+<button class="action-delete" data-type="campaign" data-id="${c.id}"&gt;Διαγραφή&lt;/button&gt; &lt;/div&gt; 
 
-{c.id}"&gt;Διαγραφή&lt;/button&gt; &lt;/div&gt; &lt;/div>;
+&lt;/div>;
 }).join('') || '<div class="small">Δεν υπάρχουν καμπάνιες</div>';
 
 document.getElementById('campaignList').innerHTML = campaigns.map(c=>&lt;div class="card"&gt; &lt;strong&gt;${campLabel(c)}</strong>
@@ -187,8 +185,9 @@ document.getElementById('campaignList').innerHTML = campaigns.map(c=>&lt;div cla
 {c.id}">Διαγραφή</button>
 </div>
 </div>
+`).join('') || '<div class="small">Δεν υπάρχουν 
 
-`).join('') || '<div class="small">Δεν υπάρχουν καμπάνιες</div>';
+καμπάνιες</div>';
 
 document.getElementById('numbersList').innerHTML = numbers.map(n=>&lt;div class="card"&gt; &lt;strong&gt;${n.number}</strong>
 <div class="small">${n.label || '—'}&lt;/div&gt; &lt;div class="small"&gt;${numCampLabel(n) ? 'Χρήση: ' + numCampLabel(n) : '—'}</div>
@@ -198,9 +197,8 @@ document.getElementById('numbersList').innerHTML = numbers.map(n=>&lt;div class=
 </div>
 `).join('') || '<div class="small">Δεν υπάρχουν αριθμοί</div>';
 
-document.getElementById('historyBody').innerHT
+document.getElementById('historyBody').innerHTML = history.map(h=>{
 
-ML = history.map(h=>{
 const c=campaigns.find(x=>x.id===h.campId);
 return <tr&gt;&lt;td&gt;${fmtDate(h.at)}</td><td>
  
@@ -209,9 +207,6 @@ return <tr&gt;&lt;td&gt;${fmtDate(h.at)}</td><td>
 }
 
 function startListeners(){
-if(listenersStarted) return;
-listenersStarted = true;
-
 onSnapshot(collection(db,'campaigns'), snap=>{
 campaigns = snap.docs.map(d=>({id:d.id, ...d.data()}));
 render();
@@ -220,6 +215,7 @@ render();
 onSnapshot(collection(db,'numbers'), snap=>{
 numbers = snap.docs.map(d=>({id:d.id, ...d.data()}));
 render();
+
 });
 
 onSnapshot(collection(db,'history'), snap=>{
@@ -228,36 +224,31 @@ render();
 });
 }
 
-async function seedIfEmptyOnce(){
-if(localStorage.getItem('dialtrack_seeded') === '1') return;
-localStorage.setItem('dialtrack_seeded', '1');
-}
-
 async function saveCampaign(){
 const data = {
 code: document.getElementById('campCode').value.trim(),
 name: document.getElementById('campName').value.trim(),
 status: document.getElementById('campStatus').value,
+
 note: document.getElementById('campNote').value.trim()
 };
 if(!data.name){ alert('Βάλε όνομα καμπάνιας'); return; }
 if(editCampId) await updateDoc(doc(db,'campaigns',editCampId), data);
-else await addDoc(collection(db,'campaigns'), 
-
-{...data, activeNumId:null, createdAt: serverTimestamp()});
+else await addDoc(collection(db,'campaigns'), {...data, activeNumId:null, createdAt: serverTimestamp()});
 editCampId = null;
 closeModal('campModal');
 }
 
 async function saveNumber(){
 const data = {
-number: document.getElementById('numValue').value.trim(),
+number: document.getElementById('numValue').value.tri
+
+m(),
 label: document.getElementById('numLabel').value.trim()
 };
 if(!data.number){ alert('Βάλε αριθμό'); return; }
 if(editNumId) await updateDoc(doc(db,'numbers',editNumId), data);
 else await addDoc(collection(db,'numbers'), {...data, createdAt: serverTimestamp()});
-
 editNumId = null;
 closeModal('numModal');
 }
@@ -267,13 +258,14 @@ const c = campaigns.find(x=>x.id===campId);
 if(!c) return;
 const number = prompt('Δώσε νέο αριθμό:');
 if(!number) return;
-let n = numbers.find(x=>x.number===number.trim());
+let n = 
+
+numbers.find(x=>x.number===number.trim());
 if(!n){
 const ref = await addDoc(collection(db,'numbers'), {number:number.trim(), label:'', createdAt: serverTimestamp()});
 n = {id: ref.id, number: number.trim(), label:''};
 }
 await updateDoc(doc(db,'campaigns',campId), {activeNumId:n.id});
-
 await addDoc(collection(db,'history'), {campId, number:n.number, note:'Αλλαγή αριθμού', at:new Date().toISOString()});
 }
 
@@ -281,6 +273,7 @@ async function deleteItem(type,id){
 if(!confirm('Σίγουρα;')) return;
 if(type==='number'){
 const affected = campaigns.filter(c=>c.activeNumId===id);
+
 for(const c of affected) await updateDoc(doc(db,'campaigns',c.id), {activeNumId:null});
 await deleteDoc(doc(db,'numbers',id));
 } else {
@@ -289,39 +282,36 @@ await deleteDoc(doc(db,'campaigns',id));
 }
 
 function openCampaignModal(){
-
 editCampId = null;
 document.getElementById('campTitle').textContent = 'Νέα Καμπάνια';
 document.getElementById('campCode').value = '';
 document.getElementById('campName').value = '';
 document.getElementById('campStatus').value = 'active';
 document.getElementById('campNote').value = '';
-document.getElementById('campModal').classList.add('open');
-}
+document.getElementById('campModal').classLi
 
+st.add('open');
+}
 function openNumberModal(){
 editNumId = null;
 document.getElementById('numTitle').textContent = 'Νέος Αριθμός';
 document.getElementById('numValue').value = '';
 document.getElementById('numLabel').value = '';
-document.getElementById('numModal').classList
-
-.add('open');
+document.getElementById('numModal').classList.add('open');
 }
-
 function editCampaign(id){
 const c = campaigns.find(x=>x.id===id);
 if(!c) return;
 editCampId = id;
 document.getElementById('campTitle').textContent = 'Επεξεργασία Καμπάνιας';
 document.getElementById('campCode').value = c.code || '';
-document.getElementById('campName').value = c.name || '';
+document.getElementById('campName').value = 
+
+c.name || '';
 document.getElementById('campStatus').value = c.status || 'active';
 document.getElementById('campNote').value = c.note || '';
 document.getElementById('campModal').classList.add('open');
 }
-
-
 function editNumItem(id){
 const n = numbers.find(x=>x.id===id);
 if(!n) return;
@@ -330,28 +320,25 @@ document.getElementById('numTitle').textContent = 'Επεξεργασία Αρι
 document.getElementById('numValue').value = n.number || '';
 document.getElementById('numLabel').value = n.label || '';
 document.getElementById('numModal').classList.add('open');
+
 }
 
 document.querySelectorAll('.navbtn').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.view)));
 document.getElementById('newCampBtn').addEventListener('click',openCampaignModal);
-
 document.getElementById('newNumBtn').addEventListener('click',openNumberModal);
 document.getElementById('saveCampBtn').addEventListener('click',saveCampaign);
 document.getElementById('saveNumBtn').addEventListener('click',saveNumber);
-
 document.addEventListener('click',e=>{
 if(e.target.matches('[data-close]')) closeModal(e.target.dataset.close);
 if(e.target.classList.contains('action-edit')) editCampaign(e.target.dataset.id);
 if(e.target.classList.contains('action-edit-num')) editNumItem(e.target.dataset.id);
+
 if(e.target.classList.contains('action-assign')) assignNumber(e.target.dataset.id);
 if(e.target.classList.contains('action-delete')) deleteItem(e.target.dataset.type,e.target.dataset.id);
-if(e.target.classList.contains('modal') && 
-
-e.target.id) closeModal(e.target.id);
+if(e.target.classList.contains('modal') && e.target.id) closeModal(e.target.id);
 });
 
 startListeners();
-await seedIfEmptyOnce();
 </script>
 </body>
 </html>

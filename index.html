@@ -15,9 +15,9 @@ button{cursor:pointer}
 .topbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
 .card{background:#1a1a1a;border:1px solid #333;border-radius:12px;padding:14px;margin-bottom:12px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
-.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;background:#2d5d66}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;background:#2d5d66;margin-right:8px}
 input,select,textarea{width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1px solid #444;background:#111;color:#eee}
-.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);align-items:center;justify-content:center;padding:16px}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);align-items:center;justify-content:center;padding:16px;z-index:100}
 .modal.open{display:flex}
 
 .modalbox{width:100%;max-width:520px;background:#1a1a1a;border:1px solid #333;border-radius:14px;padding:18px}
@@ -33,9 +33,7 @@ input,select,textarea{width:100%;box-sizing:border-box;padding:10px;border-radiu
 <div class="sidebar">
 <h2>DialTrack</h2>
 <div class="small">Διαχείριση Καμπανιών & Αριθμών</div>
-<button class="navbtn active" data-
-
-view="dashboard">Dashboard</button>
+<button class="navbtn active" data-view="dashboard">Dashboard</button>
 <button class="navbtn" data-view="campaigns">Καμπάνιες</button>
 <button class="navbtn" data-view="numbers">Αριθμοί</button>
 <button class="navbtn" data-view="history">Ιστορικό</button>
@@ -49,7 +47,6 @@ view="dashboard">Dashboard</button>
 
 <div id="dashboard" class="view">
 <div class="card"><h3>Σύνοψη</h3><div id="stats"></div></div>
-
 <div class="grid" id="campaignGrid"></div>
 </div>
 
@@ -66,12 +63,12 @@ view="dashboard">Dashboard</button>
 <table class="table">
 <thead><tr><th>Ημ/νία</th><th>Καμπάνια</th><th>Αριθμός</th><th>Σημείωση</th></tr></thead>
 <tbody id="historyBody"></tbody>
-
 </table>
 </div>
 </div>
 </div>
 
+<!-- Camp Modal -->
 <div class="modal" id="campModal">
 <div class="modalbox">
 <h3 id="campTitle">Νέα Καμπάνια</h3>
@@ -80,12 +77,15 @@ view="dashboard">Dashboard</button>
 <div><label>Όνομα</label><input id="campName"></div>
 </div>
 <div style="margin-top:10px">
+<label>Συνδεδεμένος Αριθμός</label>
+<select id="campNumberSelect"><option value="">Επιλέξτε Αριθμό</option></select>
+</div>
+<div style="margin-top:10px">
 <label>Κατάσταση</label>
 <select id="campStatus">
 <option value="active">Active</option>
 <option value="paused">Paused</option>
 <option value="inactive">Inactive</option>
-
 </select>
 </div>
 <div style="margin-top:10px">
@@ -94,23 +94,22 @@ view="dashboard">Dashboard</button>
 </div>
 <div class="actions">
 <button id="saveCampBtn">Αποθήκευση</button>
-<button data-close="campModal">Κλείσιμο</button>
+<button id="closeCampBtn">Κλείσιμο</button>
 </div>
 </div>
 </div>
 
+<!-- Num Modal -->
 <div class="modal" id="numModal">
 <div class="modalbox">
 <h3 id="numTitle">Νέος Αριθμός</h3>
 <div class="row">
-<div><label>Αριθμός</label><input 
-
-id="numValue"></div>
+<div><label>Αριθμός</label><input id="numValue"></div>
 <div><label>Ετικέτα</label><input id="numLabel"></div>
 </div>
 <div class="actions">
 <button id="saveNumBtn">Αποθήκευση</button>
-<button data-close="numModal">Κλείσιμο</button>
+<button id="closeNumBtn">Κλείσιμο</button>
 </div>
 </div>
 </div>
@@ -118,9 +117,7 @@ id="numValue"></div>
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js';
 import { getAnalytics } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-analytics.js';
-import { getFirestore, collection, addDoc, 
-
-onSnapshot, updateDoc, doc, deleteDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js';
+import { getFirestore, collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js';
 
 const firebaseConfig = {
 apiKey: "AIzaSyAoWcObIHsd-23QFiqySEp3eovh_2Y2aCc",
@@ -142,203 +139,129 @@ let history = [];
 let editCampId = null;
 let editNumId = null;
 
-function fmtDate(d){ return d ? new Date(d).toLocaleString('el-GR') : '—'; }
-function campLabel(c){ return ${c.code ? c.code + ' - ' : ''}${c.name || ''}; }
+function fmtDate(at) { 
+    if(!at) return '—';
+    // Handle Firestore serverTimestamp vs plain string
+    const d = at.seconds ? new Date(at.seconds * 1000) : new Date(at);
+    return isNaN(d.getTime()) ? '—' : d.toLocaleString('el-GR');
+}
+function campLabel(c){ return `${c.code ? c.code + ' - ' : ''}${c.name || ''}`; }
+function openModal(id){ document.getElementById(id).classList.add('open'); }
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
 function showView(id){
 document.querySelectorAll('.view').forEach(v=>v.classList.add('hidden'));
-
 document.getElementById(id).classList.remove('hidden');
 document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active', b.dataset.view===id));
 }
+
 function currentNum(c){ return numbers.find(n=>n.id===c.activeNumId); }
 function numCampLabel(n){ const c=campaigns.find(x=>x.activeNumId===n.id); return c ? campLabel(c) : ''; }
 
 function render(){
-document.getElementById('stats').innerHTML = &lt;div class="badge"&gt;Καμπάνιες: ${campaigns.length}</div>
-<div class="badge">Αριθμοί: ${numbers.length}&lt;/div&gt; &lt;div class="badge"&gt;Εγγραφές: ${history.length}</div>
+// 1. Stats
+document.getElementById('stats').innerHTML = `
+<div class="badge">Καμπάνιες: ${campaigns.length}</div>
+<div class="badge">Αριθμοί: ${numbers.length}</div> 
+<div class="badge">Εγγραφές: ${history.length}</div>
 `;
 
+// 2. Camp Select Populate in Modal
+const selectHtml = ['<option value="">Επιλέξτε Αριθμό</option>'].concat(
+    numbers.map(n => `<option value="${n.id}">${n.number} (${n.label || '—'})</option>`)
+).join('');
+document.getElementById('campNumberSelect').innerHTML = selectHtml;
 
+// 3. Dashboard Grid
 document.getElementById('campaignGrid').innerHTML = campaigns.map(c=>{
 const num=currentNum(c);
-return <div class="card"&gt; &lt;div&gt;&lt;strong&gt;${campLabel(c)}</strong></div>
-<div class="small">
- 
-{num ? num.number : 'Χωρίς αριθμό'}</span></div>
-<div class="actions">
-<button class="action-edit" data-id="
- 
-{c.id}">Αλλαγή αριθμού</button>
-<button class="action-delete" data-type="campaign" data-id="${c.id}"&gt;Διαγραφή&lt;/button&gt; &lt;/div&gt; 
-
-&lt;/div>;
+return `
+<div class="card"> 
+    <div><strong>${campLabel(c)}</strong></div>
+    <div class="small">Αριθμός: <span>${num ? num.number : 'Χωρίς αριθμό'}</span></div>
+    <div class="actions">
+        <button class="action-edit-camp" data-id="${c.id}">Επεξεργασία</button>
+        <button class="action-delete" data-type="campaign" data-id="${c.id}">Διαγραφή</button> 
+    </div> 
+</div>`;
 }).join('') || '<div class="small">Δεν υπάρχουν καμπάνιες</div>';
 
-document.getElementById('campaignList').innerHTML = campaigns.map(c=>&lt;div class="card"&gt; &lt;strong&gt;${campLabel(c)}</strong>
-<div class="small">
- 
-{c.note || '—'}</div>
-<div class="actions">
-<button class="action-edit" data-id="
- 
-{c.id}">Διαγραφή</button>
+// 4. Campaign List View
+document.getElementById('campaignList').innerHTML = campaigns.map(c=>`
+<div class="card"> 
+    <strong>${campLabel(c)}</strong>
+    <div class="small">Σημείωση: ${c.note || '—'}</div>
+    <div class="small">Κατάσταση: ${c.status || 'active'}</div>
+    <div class="actions">
+        <button class="action-edit-camp" data-id="${c.id}">Επεξεργασία</button>
+        <button class="action-delete" data-type="campaign" data-id="${c.id}">Διαγραφή</button>
+    </div>
 </div>
-</div>
-`).join('') || '<div class="small">Δεν υπάρχουν 
+`).join('') || '<div class="small">Δεν υπάρχουν καμπάνιες</div>';
 
-καμπάνιες</div>';
-
-document.getElementById('numbersList').innerHTML = numbers.map(n=>&lt;div class="card"&gt; &lt;strong&gt;${n.number}</strong>
-<div class="small">${n.label || '—'}&lt;/div&gt; &lt;div class="small"&gt;${numCampLabel(n) ? 'Χρήση: ' + numCampLabel(n) : '—'}</div>
-<div class="actions">
-<button class="action-edit-num" data-id="${n.id}"&gt;Edit&lt;/button&gt; &lt;button class="action-delete" data-type="number" data-id="${n.id}">Διαγραφή</button>
-</div>
+// 5. Numbers List View
+document.getElementById('numbersList').innerHTML = numbers.map(n=>`
+<div class="card"> 
+    <strong>${n.number}</strong>
+    <div class="small">${n.label || '—'}</div> 
+    <div class="small">${numCampLabel(n) ? 'Χρήση: ' + numCampLabel(n) : 'Ελεύθερος'}</div>
+    <div class="actions">
+        <button class="action-edit-num" data-id="${n.id}">Επεξεργασία</button> 
+        <button class="action-delete" data-type="number" data-id="${n.id}">Διαγραφή</button>
+    </div>
 </div>
 `).join('') || '<div class="small">Δεν υπάρχουν αριθμοί</div>';
 
+// 6. History Table
 document.getElementById('historyBody').innerHTML = history.map(h=>{
-
 const c=campaigns.find(x=>x.id===h.campId);
-return <tr&gt;&lt;td&gt;${fmtDate(h.at)}</td><td>
- 
-{h.number}</td><td>${h.note || '—'}</td></tr>`;
+return `
+<tr>
+    <td>${fmtDate(h.at)}</td>
+    <td>${c ? campLabel(c) : 'Άγνωστη Καμπάνια'}</td>
+    <td>${h.number || '—'}</td>
+    <td>${h.note || '—'}</td>
+</tr>`;
 }).join('') || '<tr><td colspan="4">Δεν υπάρχει ιστορικό</td></tr>';
+
+attachDynamicListeners();
 }
 
 function startListeners(){
-onSnapshot(collection(db,'campaigns'), snap=>{
-campaigns = snap.docs.map(d=>({id:d.id, ...d.data()}));
-render();
-});
+    onSnapshot(collection(db,'campaigns'), snap=>{
+        campaigns = snap.docs.map(d=>({id:d.id, ...d.data()}));
+        render();
+    });
 
-onSnapshot(collection(db,'numbers'), snap=>{
-numbers = snap.docs.map(d=>({id:d.id, ...d.data()}));
-render();
+    onSnapshot(collection(db,'numbers'), snap=>{
+        numbers = snap.docs.map(d=>({id:d.id, ...d.data()}));
+        render();
+    });
 
-});
-
-onSnapshot(collection(db,'history'), snap=>{
-history = snap.docs.map(d=>({id:d.id, ...d.data()})).sort((a,b)=>(b.at || '').localeCompare(a.at || ''));
-render();
-});
+    onSnapshot(collection(db,'history'), snap=>{
+        history = snap.docs.map(d=>({id:d.id, ...d.data()}));
+        render();
+    });
 }
 
+// Actions
 async function saveCampaign(){
-const data = {
-code: document.getElementById('campCode').value.trim(),
-name: document.getElementById('campName').value.trim(),
-status: document.getElementById('campStatus').value,
+    const name = document.getElementById('campName').value.trim();
+    const code = document.getElementById('campCode').value.trim();
+    const status = document.getElementById('campStatus').value;
+    const note = document.getElementById('campNote').value.trim();
+    const activeNumId = document.getElementById('campNumberSelect').value;
 
-note: document.getElementById('campNote').value.trim()
-};
-if(!data.name){ alert('Βάλε όνομα καμπάνιας'); return; }
-if(editCampId) await updateDoc(doc(db,'campaigns',editCampId), data);
-else await addDoc(collection(db,'campaigns'), {...data, activeNumId:null, createdAt: serverTimestamp()});
-editCampId = null;
-closeModal('campModal');
-}
+    if(!name){ alert('Παρακαλώ εισάγετε όνομα καμπάνιας!'); return; }
 
-async function saveNumber(){
-const data = {
-number: document.getElementById('numValue').value.tri
+    const data = { code, name, status, note, activeNumId };
 
-m(),
-label: document.getElementById('numLabel').value.trim()
-};
-if(!data.number){ alert('Βάλε αριθμό'); return; }
-if(editNumId) await updateDoc(doc(db,'numbers',editNumId), data);
-else await addDoc(collection(db,'numbers'), {...data, createdAt: serverTimestamp()});
-editNumId = null;
-closeModal('numModal');
-}
-
-async function assignNumber(campId){
-const c = campaigns.find(x=>x.id===campId);
-if(!c) return;
-const number = prompt('Δώσε νέο αριθμό:');
-if(!number) return;
-let n = 
-
-numbers.find(x=>x.number===number.trim());
-if(!n){
-const ref = await addDoc(collection(db,'numbers'), {number:number.trim(), label:'', createdAt: serverTimestamp()});
-n = {id: ref.id, number: number.trim(), label:''};
-}
-await updateDoc(doc(db,'campaigns',campId), {activeNumId:n.id});
-await addDoc(collection(db,'history'), {campId, number:n.number, note:'Αλλαγή αριθμού', at:new Date().toISOString()});
-}
-
-async function deleteItem(type,id){
-if(!confirm('Σίγουρα;')) return;
-if(type==='number'){
-const affected = campaigns.filter(c=>c.activeNumId===id);
-
-for(const c of affected) await updateDoc(doc(db,'campaigns',c.id), {activeNumId:null});
-await deleteDoc(doc(db,'numbers',id));
-} else {
-await deleteDoc(doc(db,'campaigns',id));
-}
-}
-
-function openCampaignModal(){
-editCampId = null;
-document.getElementById('campTitle').textContent = 'Νέα Καμπάνια';
-document.getElementById('campCode').value = '';
-document.getElementById('campName').value = '';
-document.getElementById('campStatus').value = 'active';
-document.getElementById('campNote').value = '';
-document.getElementById('campModal').classLi
-
-st.add('open');
-}
-function openNumberModal(){
-editNumId = null;
-document.getElementById('numTitle').textContent = 'Νέος Αριθμός';
-document.getElementById('numValue').value = '';
-document.getElementById('numLabel').value = '';
-document.getElementById('numModal').classList.add('open');
-}
-function editCampaign(id){
-const c = campaigns.find(x=>x.id===id);
-if(!c) return;
-editCampId = id;
-document.getElementById('campTitle').textContent = 'Επεξεργασία Καμπάνιας';
-document.getElementById('campCode').value = c.code || '';
-document.getElementById('campName').value = 
-
-c.name || '';
-document.getElementById('campStatus').value = c.status || 'active';
-document.getElementById('campNote').value = c.note || '';
-document.getElementById('campModal').classList.add('open');
-}
-function editNumItem(id){
-const n = numbers.find(x=>x.id===id);
-if(!n) return;
-editNumId = id;
-document.getElementById('numTitle').textContent = 'Επεξεργασία Αριθμού';
-document.getElementById('numValue').value = n.number || '';
-document.getElementById('numLabel').value = n.label || '';
-document.getElementById('numModal').classList.add('open');
-
-}
-
-document.querySelectorAll('.navbtn').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.view)));
-document.getElementById('newCampBtn').addEventListener('click',openCampaignModal);
-document.getElementById('newNumBtn').addEventListener('click',openNumberModal);
-document.getElementById('saveCampBtn').addEventListener('click',saveCampaign);
-document.getElementById('saveNumBtn').addEventListener('click',saveNumber);
-document.addEventListener('click',e=>{
-if(e.target.matches('[data-close]')) closeModal(e.target.dataset.close);
-if(e.target.classList.contains('action-edit')) editCampaign(e.target.dataset.id);
-if(e.target.classList.contains('action-edit-num')) editNumItem(e.target.dataset.id);
-
-if(e.target.classList.contains('action-assign')) assignNumber(e.target.dataset.id);
-if(e.target.classList.contains('action-delete')) deleteItem(e.target.dataset.type,e.target.dataset.id);
-if(e.target.classList.contains('modal') && e.target.id) closeModal(e.target.id);
-});
-
-startListeners();
-</script>
-</body>
-</html>
+    try {
+        if(editCampId){
+            const oldCamp = campaigns.find(c => c.id === editCampId);
+            await updateDoc(doc(db, 'campaigns', editCampId), data);
+            
+            // Log history if number changed
+            if(oldCamp && oldCamp.activeNumId !== activeNumId) {
+                const numObj = numbers.find(n => n.id === activeNumId);
+                await addDoc(collection(db, 'history'), {

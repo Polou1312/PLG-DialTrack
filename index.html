@@ -3,57 +3,40 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DialTrack - Cloud JSONbin</title>
+<title>DialTrack Cloud</title>
 <style>
 body{font-family:Arial,sans-serif;background:#111;color:#eee;margin:0;min-height:100vh;display:flex}
-.sidebar{width:240px;background:#1b1b1b;padding:16px;box-sizing:border-box;border-right:1px solid #333;display:flex;flex-direction:column;justify-content:space-between}
+.sidebar{width:240px;background:#1b1b1b;padding:16px;box-sizing:border-box;border-right:1px solid #333}
 .main{flex:1;padding:20px;box-sizing:border-box}
-button{cursor:pointer}
-.navbtn,.topbtn{display:block;width:100%;padding:10px 12px;margin:6px 0;background:#222;color:#eee;border:1px solid #333;border-radius:8px;text-align:left}
+button{cursor:pointer;padding:10px;margin:5px 0;background:#222;color:#eee;border:1px solid #333;border-radius:8px;text-align:left;display:block;width:100%}
 .navbtn.active{background:#2d5d66}
-.topbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
 .card{background:#1a1a1a;border:1px solid #333;border-radius:12px;padding:14px;margin-bottom:12px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
 .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;background:#2d5d66;margin-right:8px}
-input,select,textarea{width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1px solid #444;background:#111;color:#eee}
+input,select,textarea{width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1px solid #444;background:#111;color:#eee;margin-bottom:10px}
 .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);align-items:center;justify-content:center;padding:16px;z-index:100}
 .modal.open{display:flex}
 .modalbox{width:100%;max-width:520px;background:#1a1a1a;border:1px solid #333;border-radius:14px;padding:18px}
-.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.small{color:#aaa;font-size:12px}
-.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .table{width:100%;border-collapse:collapse}
 .table th,.table td{border-bottom:1px solid #333;padding:10px;text-align:left}
 .hidden{display:none}
-.danger-btn{background:#721c24;color:#f8d7da;border:1px solid #f5c6cb;text-align:center;font-size:12px;opacity:0.7}
-.danger-btn:hover{opacity:1}
-.export-btn{background:#1e4620;border:1px solid #2e6931}
-.loading-indicator{display:none;background:#2d5d66;color:white;padding:8px;text-align:center;position:fixed;top:10px;right:10px;border-radius:5px;z-index:1000;}
 </style>
 </head>
 <body>
 
-<div id="loading" class="loading-indicator">🔄 Συγχρονισμός με Cloud...</div>
-
 <div class="sidebar">
-<div>
 <h2>DialTrack</h2>
-<div class="small" style="margin-bottom:20px">Cloud Αποθήκευση (JSONbin)</div>
-<button class="navbtn active" data-view="dashboard">Dashboard</button>
-<button class="navbtn" data-view="campaigns">Καμπάνιες</button>
-<button class="navbtn" data-view="numbers">Αριθμοί</button>
-<button class="navbtn" data-view="history">Ιστορικό</button>
-</div>
-<div>
-<button class="navbtn danger-btn" id="resetDataBtn">⚠️ Καθαρισμός Δεδομένων</button>
-</div>
+<button class="navbtn active" onclick="showView('dashboard')">Dashboard</button>
+<button class="navbtn" onclick="showView('campaigns')">Καμπάνιες</button>
+<button class="navbtn" onclick="showView('numbers')">Αριθμοί</button>
+<button class="navbtn" onclick="showView('history')">Ιστορικό</button>
+<button style="background:#721c24;" onclick="resetData()">⚠️ Reset</button>
 </div>
 
 <div class="main">
-<div class="topbar">
-<button class="topbtn" id="newCampBtn">Νέα Καμπάνια</button>
-<button class="topbtn" id="newNumBtn">Νέος Αριθμός</button>
-<button class="topbtn export-btn" id="exportHistoryBtn" style="width:auto;margin-left:auto">📥 Εξαγωγή Ιστορικού (Excel)</button>
+<div style="display:flex;gap:10px;margin-bottom:16px">
+<button style="width:auto" onclick="openModal('campModal')">+ Νέα Καμπάνια</button>
+<button style="width:auto" onclick="openModal('numModal')">+ Νέος Αριθμός</button>
 </div>
 
 <div id="dashboard" class="view">
@@ -62,11 +45,11 @@ input,select,textarea{width:100%;box-sizing:border-box;padding:10px;border-radiu
 </div>
 
 <div id="campaigns" class="view hidden">
-<div class="card"><h3>Καμπάνιες</h3><div id="campaignList"></div></div>
+<div class="card"><h3>Λίστα Καμπανιών</h3><div id="campaignList"></div></div>
 </div>
 
 <div id="numbers" class="view hidden">
-<div class="card"><h3>Αριθμοί</h3><div id="numbersList"></div></div>
+<div class="card"><h3>Λίστα Αριθμών</h3><div id="numbersList"></div></div>
 </div>
 
 <div id="history" class="view hidden">
@@ -82,215 +65,127 @@ input,select,textarea{width:100%;box-sizing:border-box;padding:10px;border-radiu
 <!-- Camp Modal -->
 <div class="modal" id="campModal">
 <div class="modalbox">
-<h3 id="campTitle">Νέα Καμπάνια</h3>
-<div class="row">
-<div><label>Κωδικός</label><input id="campCode"></div>
-<div><label>Όνομα</label><input id="campName"></div>
-</div>
-<div style="margin-top:10px">
-<label>Συνδεδεμένος Αριθμός</label>
-<select id="campNumberSelect"><option value="">Επιλέξτε Αριθμό</option></select>
-</div>
-<div style="margin-top:10px">
-<label>Κατάσταση</label>
-<select id="campStatus">
-<option value="active">Active</option>
-<option value="paused">Paused</option>
-<option value="inactive">Inactive</option>
-</select>
-</div>
-<div style="margin-top:10px">
-<label>Σημείωση</label>
-<textarea id="campNote" rows="3"></textarea>
-</div>
-<div class="actions">
-<button id="saveCampBtn">Αποθήκευση</button>
-<button id="closeCampBtn">Κλείσιμο</button>
-</div>
+<h3>Νέα Καμπάνια</h3>
+<label>Κωδικός</label><input id="campCode">
+<label>Όνομα</label><input id="campName">
+<label>Συνδεδεμένος Αριθμός</label><select id="campNumberSelect"></select>
+<label>Σημείωση</label><textarea id="campNote" rows="2"></textarea>
+<button onclick="saveCampaign()">Αποθήκευση</button>
+<button style="background:#555" onclick="closeModal('campModal')">Κλείσιμο</button>
 </div>
 </div>
 
 <!-- Num Modal -->
 <div class="modal" id="numModal">
 <div class="modalbox">
-<h3 id="numTitle">Νέος Αριθμός</h3>
-<div class="row">
-<div><label>Αριθμός</label><input id="numValue"></div>
-<div><label>Ετικέτα</label><input id="numLabel"></div>
-</div>
-<div class="actions">
-<button id="saveNumBtn">Αποθήκευση</button>
-<button id="closeNumBtn">Κλείσιμο</button>
-</div>
+<h3>Νέος Αριθμός</h3>
+<label>Αριθμός</label><input id="numValue">
+<label>Ετικέτα</label><input id="numLabel">
+<button onclick="saveNumber()">Αποθήκευση</button>
+<button style="background:#555" onclick="closeModal('numModal')">Κλείσιμο</button>
 </div>
 </div>
 
-<script src="app.js"></script>
-</body>
-</html>
-const BIN_ID = "6a33f6dfda38895dfed7609a"; 
-const API_KEY = "$2a$10$0KRvyPXQ1Gf0fX.8ZxDB/Oj4fyXRsz0gMew3T0S2N4gdLkLOT0M8O"; 
+<script>
+const BIN_ID = "6a33f6dfda38895dfed7609a";
+const API_KEY = "$2a$10$0KRvyPXQ1Gf0fX.8ZxDB/Oj4fyXRsz0gMew3T0S2N4gdLkLOT0M8O";
 
-let campaigns = []; let numbers = []; let history = [];
-let editCampId = null; let editNumId = null;
-
-function showLoading(show) { document.getElementById('loading').style.display = show ? 'block' : 'none'; }
+let campaigns = [], numbers = [], history = [];
 
 async function loadData() {
-    showLoading(true);
     try {
-        const response = await fetch(`https://jsonbin.io{BIN_ID}/latest`, {
-            headers: { "X-Master-Key": API_KEY, "X-Bin-Meta": "false" }
-        });
-        if (!response.ok) throw new Error();
-        const res = await response.json();
-        campaigns = res.campaigns || [];
-        numbers = res.numbers || [];
-        history = res.history || [];
+        const r = await fetch('https://jsonbin.io' + BIN_ID + '/latest', { headers: { "X-Master-Key": API_KEY, "X-Bin-Meta": "false" } });
+        const res = await r.json();
+        campaigns = res.campaigns || []; numbers = res.numbers || []; history = res.history || [];
         render();
-    } catch (e) { alert("Σφάλμα σύνδεσης με το Cloud!"); }
-    showLoading(false);
+    } catch (e) { alert("Σφάλμα Cloud!"); }
 }
 
 async function saveData() {
-    showLoading(true);
     try {
-        const response = await fetch(`https://jsonbin.io{BIN_ID}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json", "X-Master-Key": API_KEY, "X-Bin-Meta": "false" },
+        const r = await fetch('https://jsonbin.io' + BIN_ID, {
+            method: "PUT", headers: { "Content-Type": "application/json", "X-Master-Key": API_KEY, "X-Bin-Meta": "false" },
             body: JSON.stringify({ campaigns, numbers, history })
         });
-        if (!response.ok) throw new Error();
-        const resData = await response.json();
-        const record = resData.record || resData;
-        campaigns = record.campaigns || [];
-        numbers = record.numbers || [];
-        history = record.history || [];
+        const res = await r.json();
+        const data = res.record || res;
+        campaigns = data.campaigns || []; numbers = data.numbers || []; history = data.history || [];
         render();
-    } catch (e) { alert("Αποτυχία αποθήκευσης στο Cloud!"); }
-    showLoading(false);
+    } catch (e) { alert("Αποτυχία Cloud!"); }
 }
 
-function fmtDate(iso) { return iso ? new Date(iso).toLocaleString('el-GR') : '—'; }
-function showView(id){
-    document.querySelectorAll('.view').forEach(v=>v.classList.add('hidden')); document.getElementById(id).classList.remove('hidden');
-    document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active', b.dataset.view===id));
+function showView(id) {
+    document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+    document.getElementById(id).classList.remove('hidden');
+    document.querySelectorAll('.navbtn').forEach(b => b.classList.toggle('active', b.getAttribute('onclick').includes(id)));
 }
 
-function render(){
-    document.getElementById('stats').innerHTML = `<div class="badge">Καμπάνιες: ${campaigns.length}</div><div class="badge">Αριθμοί: ${numbers.length}</div><div class="badge">Εγγραφές: ${history.length}</div>`;
-    document.getElementById('campNumberSelect').innerHTML = ['<option value="">Επιλέξτε Αριθμό</option>'].concat(numbers.map(n => `<option value="${n.id}">${n.number} (${n.label || '—'})</option>`)).join('');
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function render() {
+    document.getElementById('stats').innerHTML = '<div class="badge">Καμπάνιες: ' + campaigns.length + '</div><div class="badge">Αριθμοί: ' + numbers.length + '</div>';
     
-    document.getElementById('campaignGrid').innerHTML = campaigns.map(c=>{
-        const activeNum = numbers.find(n => String(n.id) === String(c.active_num_id));
-        return `<div class="card"><div><strong>${c.code ? c.code + ' - ' : ''}${c.name}</strong></div><div class="small">Αριθμός: <span>${activeNum ? activeNum.number : 'Χωρίς αριθμό'}</span></div><div class="actions"><button onclick="openEditCamp(${c.id})">Επεξεργασία</button><button onclick="deleteItem('campaigns', ${c.id})">Διαγραφή</button></div></div>`;
-    }).join('') || '<div class="small">Δεν υπάρχουν καμπάνιες</div>';
-    
-    document.getElementById('campaignList').innerHTML = campaigns.map(c=>`<div class="card"><strong>${c.code ? c.code + ' - ' : ''}${c.name}</strong><div class="small">Σημείωση: ${c.note || '—'}</div><div class="small">Κατάσταση: ${c.status}</div><div class="actions"><button onclick="openEditCamp(${c.id})">Επεξεργασία</button><button onclick="deleteItem('campaigns', ${c.id})">Διαγραφή</button></div></div>`).join('') || '<div class="small">Δεν υπάρχουν καμπάνιες</div>';
-    
-    document.getElementById('numbersList').innerHTML = numbers.map(n=>{
-        const connectedCamp = campaigns.find(c => String(c.active_num_id) === String(n.id));
-        return `<div class="card"><strong>${n.number}</strong><div class="small">${n.label || '—'}</div><div class="small">${connectedCamp ? 'Χρήση σε: ' + connectedCamp.name : 'Ελεύθερος'}</div><div class="actions"><button onclick="openEditNum(${n.id})">Επεξεργασία</button><button onclick="deleteItem('numbers', ${n.id})">Διαγραφή</button></div></div>`;
-    }).join('') || '<div class="small">Δεν υπάρχουν αριθμοί</div>';
-    
-    document.getElementById('historyBody').innerHTML = history.map(h=>{
-        const camp = campaigns.find(c => String(c.id) === String(h.camp_id));
-        return `<tr><td>${fmtDate(h.created_at)}</td><td>${camp ? camp.name : 'Άγνωστη'}</td><td>${h.number || '—'}</td><td>${h.note || '—'}</td></tr>`;
-    }).join('') || '<tr><td colspan="4">Δεν υπάρχει ιστορικό</td></tr>';
-}
-function saveCampaign(){
-    const name = document.getElementById('campName').value.trim(); 
-    const code = document.getElementById('campCode').value.trim();
-    const status = document.getElementById('campStatus').value; 
-    const note = document.getElementById('campNote').value.trim();
-    const active_num_id = document.getElementById('campNumberSelect').value || null;
-    
-    if(!name){ alert('Βάλε όνομα!'); return; }
-    
-    if(editCampId) {
-        const old = campaigns.find(c => String(c.id) === String(editCampId)); 
-        campaigns = campaigns.map(c => String(c.id) === String(editCampId) ? { ...c, code, name, status, note, active_num_id } : c);
-        if(old && String(old.active_num_id) !== String(active_num_id)) {
-            const nObj = numbers.find(n => String(n.id) === String(active_num_id)); 
-            history.unshift({ id: Date.now(), camp_id: editCampId, number: nObj ? nObj.number : 'Αφαιρέθηκε', note: 'Αλλαγή αριθμού', created_at: new Date().toISOString() });
-        }
-    } else {
-        const newCamp = { id: Date.now(), code, name, status, note, active_num_id }; 
-        campaigns.push(newCamp);
-        const nObj = numbers.find(n => String(n.id) === String(active_num_id)); 
-        history.unshift({ id: Date.now() + 1, camp_id: newCamp.id, number: nObj ? nObj.number : 'Χωρίς αριθμό', note: 'Δημιουργία καμπάνιας', created_at: new Date().toISOString() });
-    }
-    document.getElementById('campModal').classList.remove('open'); 
-    saveData();
+    let opts = '<option value="">Επιλέξτε Αριθμό</option>';
+    numbers.forEach(n => opts += '<option value="' + n.id + '">' + n.number + '</option>');
+    document.getElementById('campNumberSelect').innerHTML = opts;
+
+    let grid = '', list = '';
+    campaigns.forEach(c => {
+        const n = numbers.find(num => String(num.id) === String(c.active_num_id));
+        grid += '<div class="card"><strong>' + (c.code ? c.code + ' - ' : '') + c.name + '</strong><br><small>Αριθμός: ' + (n ? n.number : 'Χωρίς') + '</small><br><button style="width:auto;padding:4px 8px;margin-top:5px" onclick="deleteItem(\'campaigns\',' + c.id + ')">Διαγραφή</button></div>';
+        list += '<div class="card"><strong>' + c.name + '</strong> - ' + (c.note || '—') + '</div>';
+    });
+    document.getElementById('campaignGrid').innerHTML = grid || 'Καμία καμπάνια';
+    document.getElementById('campaignList').innerHTML = list || 'Καμία καμπάνια';
+
+    let numHtml = '';
+    numbers.forEach(n => numHtml += '<div class="card"><strong>' + n.number + '</strong> (' + (n.label || '—') + ')<br><button style="width:auto;padding:4px 8px;margin-top:5px" onclick="deleteItem(\'numbers\',' + n.id + ')">Διαγραφή</button></div>');
+    document.getElementById('numbersList').innerHTML = numHtml || 'Κανένας αριθμός';
+
+    let histHtml = '';
+    history.forEach(h => {
+        const c = campaigns.find(camp => String(camp.id) === String(h.camp_id));
+        histHtml += '<tr><td>' + new Date(h.created_at).toLocaleDateString('el-GR') + '</td><td>' + (c ? c.name : '—') + '</td><td>' + h.number + '</td><td>' + h.note + '</td></tr>';
+    });
+    document.getElementById('historyBody').innerHTML = histHtml || '<tr><td colspan="4">Κενό ιστορικό</td></tr>';
 }
 
-function saveNumber(){
-    const number = document.getElementById('numValue').value.trim(); 
-    const label = document.getElementById('numLabel').value.trim();
-    if(!number){ alert('Βάλε αριθμό!'); return; }
-    if(editNumId) { 
-        numbers = numbers.map(n => String(n.id) === String(editNumId) ? { ...n, number, label } : n); 
-    } else { 
-        numbers.push({ id: Date.now(), number, label }); 
-    }
-    document.getElementById('numModal').classList.remove('open'); 
-    saveData();
+function saveCampaign() {
+    const name = document.getElementById('campName').value.trim();
+    if(!name) return alert('Βάλε όνομα!');
+    const newCamp = {
+        id: Date.now(),
+        code: document.getElementById('campCode').value.trim(),
+        name: name,
+        active_num_id: document.getElementById('campNumberSelect').value,
+        note: document.getElementById('campNote').value.trim()
+    };
+    campaigns.push(newCamp);
+    const n = numbers.find(num => String(num.id) === String(newCamp.active_num_id));
+    history.unshift({ id: Date.now()+1, camp_id: newCamp.id, number: n ? n.number : 'Χωρίς', note: 'Νέα Καμπάνια', created_at: new Date().toISOString() });
+    closeModal('campModal'); saveData();
+}
+
+function saveNumber() {
+    const val = document.getElementById('numValue').value.trim();
+    if(!val) return alert('Βάλε αριθμό!');
+    numbers.push({ id: Date.now(), number: val, label: document.getElementById('numLabel').value.trim() });
+    closeModal('numModal'); saveData();
 }
 
 function deleteItem(type, id) {
-    if(!confirm('Σίγουρα διαγραφή;')) return;
-    if(type === 'campaigns') { 
-        campaigns = campaigns.filter(c => String(c.id) !== String(id)); 
-        history = history.filter(h => String(h.camp_id) !== String(id)); 
-    } else if(type === 'numbers') { 
-        campaigns = campaigns.map(c => String(c.active_num_id) === String(id) ? { ...c, active_num_id: null } : c); 
-        numbers = numbers.filter(n => String(n.id) !== String(id)); 
-    }
+    if(!confirm('Διαγραφή;')) return;
+    if(type === 'campaigns') { campaigns = campaigns.filter(c => String(c.id) !== String(id)); }
+    else { numbers = numbers.filter(n => String(n.id) !== String(id)); }
     saveData();
 }
 
-function exportHistoryToCSV() {
-    if(history.length === 0) { alert('Το ιστορικό είναι άδειο!'); return; }
-    let csv = "\uFEFF" + "Ημερομηνία,Καμπάνια,Αριθμός,Σημείωση\n";
-    history.forEach(h => { 
-        const camp = campaigns.find(c => String(c.id) === String(h.camp_id)); 
-        csv += `"${fmtDate(h.created_at).replace(/,/g, '')}","${camp ? camp.name : 'Άγνωστη'}","${h.number || '—'}","${h.note || '—'}"\n`; 
-    });
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' }); 
-    const link = document.createElement("a");
-    link.setAttribute("href", URL.createObjectURL(blob)); 
-    link.setAttribute("download", `DialTrack_History_${new Date().toISOString().split('T')}.csv`);
-    document.body.appendChild(link); link.click(); document.body.removeChild(link);
-}
+function resetData() { if(confirm('⚠️ Reset;')) { campaigns = []; numbers = []; history = []; saveData(); } }
 
-function openEditCamp(id) {
-    editCampId = id; 
-    const c = campaigns.find(x => String(x.id) === String(id));
-    document.getElementById('campTitle').innerText = "Επεξεργασία Καμπάνιας"; 
-    document.getElementById('campCode').value = c.code || '';
-    document.getElementById('campName').value = c.name || ''; 
-    document.getElementById('campStatus').value = c.status || 'active';
-    document.getElementById('campNote').value = c.note || ''; 
-    document.getElementById('campNumberSelect').value = c.active_num_id || '';
-    document.getElementById('campModal').classList.add('open');
-}
+window.onload = loadData;
+</script>
+</body>
+</html>
 
-function openEditNum(id) {
-    editNumId = id; 
-    const n = numbers.find(x => String(x.id) === String(id));
-    document.getElementById('numTitle').innerText = "Επεξεργασία Αριθμού"; 
-    document.getElementById('numValue').value = n.number || '';
-    document.getElementById('numLabel').value = n.label || ''; 
-    document.getElementById('numModal').classList.add('open');
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('.navbtn').forEach(btn => { if(btn.id !== 'resetDataBtn') btn.onclick = () => showView(btn.dataset.view); });
-    document.getElementById('newCampBtn').onclick = () => { editCampId = null; document.getElementById('campTitle').innerText = "Νέα Καμπάνια"; document.getElementById('campCode').value = ''; document.getElementById('campName').value = ''; document.getElementById('campNote').value = ''; document.getElementById('campNumberSelect').value = ''; document.getElementById('campModal').classList.add('open'); };
-    document.getElementById('newNumBtn').onclick = () => { editNumId = null; document.getElementById('numTitle').innerText = "Νέος Αριθμός"; document.getElementById('numValue').value = ''; document.getElementById('numLabel').value = ''; document.getElementById('numModal').classList.add('open'); };
-    document.getElementById('closeCampBtn').onclick = () => document.getElementById('campModal').classList.remove('open'); document.getElementById('closeNumBtn').onclick = () => document.getElementById('numModal').classList.remove('open');
-    document.getElementById('saveCampBtn').onclick = saveCampaign; document.getElementById('saveNumBtn').onclick = saveNumber; document.getElementById('exportHistoryBtn').onclick = exportHistoryToCSV;
-    document.getElementById('resetDataBtn').onclick = () => { if(confirm('⚠️ Διαγραφή όλων;')) { campaigns = []; numbers = []; history = []; saveData(); } };
-    loadData();
-});
 

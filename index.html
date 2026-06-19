@@ -87,40 +87,35 @@ input,select,textarea{width:100%;box-sizing:border-box;padding:10px;border-radiu
 </div>
 
 <script>
-const BIN_ID = "6a33f6dfda38895dfed7609a";
-const API_KEY = "$2a$10$0KRvyPXQ1Gf0fX.8ZxDB/Oj4fyXRsz0gMew3T0S2N4gdLkLOT0M8O";
+const GH_TOKEN = "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";
+const GIST_ID = "5a1c2ad62874dc8f61a62632185647e3";
 
 let campaigns = [], numbers = [], history = [];
 
 async function loadData() {
     try {
-        const r = await fetch('https://jsonbin.io' + BIN_ID + '/latest', { 
-            headers: { "X-Master-Key": API_KEY, "X-Bin-Meta": "false" } 
+        const r = await fetch('https://github.com' + GIST_ID, {
+            headers: { "Authorization": "token " + GH_TOKEN }
         });
         if (!r.ok) throw new Error();
         const res = await r.json();
-        campaigns = res.campaigns || []; numbers = res.numbers || []; history = res.history || [];
+        const rawData = JSON.parse(res.files["data.json"].content);
+        campaigns = rawData.campaigns || []; numbers = rawData.numbers || []; history = rawData.history || [];
         render();
-    } catch (e) { alert("Σφάλμα Cloud κατά τη φόρτωση!"); }
+    } catch (e) { alert("Σφάλμα κατά τη φόρτωση από το GitHub Cloud!"); }
 }
 
 async function saveData() {
     try {
-        const r = await fetch('https://jsonbin.io' + BIN_ID, {
-            method: "PUT", 
-            headers: { 
-                "Content-Type": "application/json", 
-                "X-Master-Key": API_KEY, 
-                "X-Bin-Meta": "false"
-            },
-            body: JSON.stringify({ campaigns, numbers, history })
+        const updatedBody = { files: { "data.json": { content: JSON.stringify({ campaigns, numbers, history }) } } };
+        const r = await fetch('https://github.com' + GIST_ID, {
+            method: "PATCH",
+            headers: { "Authorization": "token " + GH_TOKEN, "Content-Type": "application/json" },
+            body: JSON.stringify(updatedBody)
         });
         if (!r.ok) throw new Error();
-        const res = await r.json();
-        const data = res.record || res;
-        campaigns = data.campaigns || []; numbers = data.numbers || []; history = data.history || [];
         render();
-    } catch (e) { alert("Αποτυχία Cloud κατά την αποθήκευση!"); }
+    } catch (e) { alert("Αποτυχία αποθήκευσης στο GitHub Cloud!"); }
 }
 
 function showView(id) {
@@ -134,7 +129,6 @@ function closeModal(id) { document.getElementById(id).classList.remove('open'); 
 
 function render() {
     document.getElementById('stats').innerHTML = '<div class="badge">Καμπάνιες: ' + campaigns.length + '</div><div class="badge">Αριθμοί: ' + numbers.length + '</div>';
-    
     let opts = '<option value="">Επιλέξτε Αριθμό</option>';
     numbers.forEach(n => opts += '<option value="' + n.id + '">' + n.number + '</option>');
     document.getElementById('campNumberSelect').innerHTML = opts;
@@ -175,6 +169,7 @@ function saveCampaign() {
     history.unshift({ id: Date.now()+1, camp_id: newCamp.id, number: n ? n.number : 'Χωρίς', note: 'Νέα Καμπάνια', created_at: new Date().toISOString() });
     closeModal('campModal'); saveData();
 }
+
 
 function saveNumber() {
     const val = document.getElementById('numValue').value.trim();

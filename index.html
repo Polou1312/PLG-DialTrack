@@ -110,23 +110,9 @@ input,select,textarea{width:100%;box-sizing:border-box;padding:10px;border-radiu
 </div>
 </div>
 
-<!-- Num Modal -->
-<div class="modal" id="numModal">
-<div class="modalbox">
-<h3 id="numTitle">Νέος Αριθμός</h3>
-<div class="row">
-<div><label>Αριθμός</label><input id="numValue"></div>
-<div><label>Ετικέτα</label><input id="numLabel"></div>
-</div>
-<div class="actions">
-<button id="saveNumBtn">Αποθήκευση</button>
-<button id="closeNumBtn">Κλείσιμο</button>
-</div>
-</div>
-</div>
 <script>
 const BIN_ID = "6a33f6dfda38895dfed7609a"; 
-const API_KEY = "$2a$10$x0omY/rZCL3LJZTWSLMlKuC.B0EE3JWr9AV8ca9rbPQOiAafiKEmy"; 
+const API_KEY = "$2a$10$0KRvyPXQ1Gf0fX.8ZxDB/Oj4fyXRsz0gMew3T0S2N4gdLkLOT0M8O"; 
 
 let campaigns = []; let numbers = []; let history = [];
 let editCampId = null; let editNumId = null;
@@ -137,27 +123,40 @@ async function loadData() {
     showLoading(true);
     try {
         const response = await fetch(`https://jsonbin.io{BIN_ID}/latest`, {
-            headers: { "X-Master-Key": API_KEY }
+            headers: { 
+                "X-Master-Key": API_KEY,
+                "X-Bin-Meta": "false"
+            }
         });
+        if (!response.ok) throw new Error();
         const res = await response.json();
-        campaigns = res.record.campaigns || [];
-        numbers = res.record.numbers || [];
-        history = res.record.history || [];
+        
+        // Αν τα δεδομένα έρθουν σωστά
+        campaigns = res.campaigns || [];
+        numbers = res.numbers || [];
+        history = res.history || [];
         render();
-    } catch (e) { alert("Σφάλμα σύνδεσης με το Cloud!"); console.error(e); }
+    } catch (e) { 
+        alert("Σφάλμα σύνδεσης! Ελέγξτε αν το Bin σας είναι σωστά αποθηκευμένο."); 
+    }
     showLoading(false);
 }
 
 async function saveData() {
     showLoading(true);
     try {
-        await fetch(`https://jsonbin.io{BIN_ID}`, {
+        const response = await fetch(`https://jsonbin.io{BIN_ID}`, {
             method: "PUT",
-            headers: { "Content-Type": "application/json", "X-Master-Key": API_KEY },
+            headers: { 
+                "Content-Type": "application/json", 
+                "X-Master-Key": API_KEY,
+                "X-Bin-Meta": "false"
+            },
             body: JSON.stringify({ campaigns, numbers, history })
         });
+        if (!response.ok) throw new Error();
         render();
-    } catch (e) { alert("Αποτυχία αποθήκευσης στο Cloud!"); console.error(e); }
+    } catch (e) { alert("Αποτυχία αποθήκευσης στο Cloud!"); }
     showLoading(false);
 }
 
@@ -251,4 +250,3 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
-

@@ -87,35 +87,30 @@ input,select,textarea{width:100%;box-sizing:border-box;padding:10px;border-radiu
 </div>
 
 <script>
-const GH_TOKEN = "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";
-const GIST_ID = "5a1c2ad62874dc8f61a62632185647e3";
+const CLOUD_ID = "d3c20e4e-9af0-4f1d-908b-6c0e9a25b582";
+const API_KEY = "91b92f03-9fb8-4270-9618-6781cff19dbd";
 
 let campaigns = [], numbers = [], history = [];
 
 async function loadData() {
     try {
-        const r = await fetch('https://github.com' + GIST_ID, {
-            headers: { "Authorization": "token " + GH_TOKEN }
-        });
+        const r = await fetch('https://jsonstorage.net' + CLOUD_ID);
         if (!r.ok) throw new Error();
         const res = await r.json();
-        const rawData = JSON.parse(res.files["data.json"].content);
-        campaigns = rawData.campaigns || []; numbers = rawData.numbers || []; history = rawData.history || [];
+        campaigns = res.campaigns || []; numbers = res.numbers || []; history = res.history || [];
         render();
-    } catch (e) { alert("Σφάλμα κατά τη φόρτωση από το GitHub Cloud!"); }
+    } catch (e) { alert("Σφάλμα σύνδεσης κατά τη φόρτωση!"); }
 }
 
 async function saveData() {
     try {
-        const updatedBody = { files: { "data.json": { content: JSON.stringify({ campaigns, numbers, history }) } } };
-        const r = await fetch('https://github.com' + GIST_ID, {
-            method: "PATCH",
-            headers: { "Authorization": "token " + GH_TOKEN, "Content-Type": "application/json" },
-            body: JSON.stringify(updatedBody)
+        await fetch('https://jsonstorage.net' + CLOUD_ID + '?apiKey=' + API_KEY, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ campaigns, numbers, history })
         });
-        if (!r.ok) throw new Error();
         render();
-    } catch (e) { alert("Αποτυχία αποθήκευσης στο GitHub Cloud!"); }
+    } catch (e) { alert("Αποτυχία αποθήκευσης στο Cloud!"); }
 }
 
 function showView(id) {
@@ -169,8 +164,6 @@ function saveCampaign() {
     history.unshift({ id: Date.now()+1, camp_id: newCamp.id, number: n ? n.number : 'Χωρίς', note: 'Νέα Καμπάνια', created_at: new Date().toISOString() });
     closeModal('campModal'); saveData();
 }
-
-// ⚠️ Σημείωση: Αν το GitHub απενεργοποίησε το token επειδή γράφτηκε στο τσατ, αντικαταστήστε το "ghp_..." στην αρχή του script με ένα νέο κλασικό token.
 
 function saveNumber() {
     const val = document.getElementById('numValue').value.trim();

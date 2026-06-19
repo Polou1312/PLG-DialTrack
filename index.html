@@ -94,24 +94,33 @@ let campaigns = [], numbers = [], history = [];
 
 async function loadData() {
     try {
-        const r = await fetch('https://jsonbin.io' + BIN_ID + '/latest', { headers: { "X-Master-Key": API_KEY, "X-Bin-Meta": "false" } });
+        const r = await fetch('https://jsonbin.io' + BIN_ID + '/latest', { 
+            headers: { "X-Master-Key": API_KEY, "X-Bin-Meta": "false" } 
+        });
+        if (!r.ok) throw new Error();
         const res = await r.json();
         campaigns = res.campaigns || []; numbers = res.numbers || []; history = res.history || [];
         render();
-    } catch (e) { alert("Σφάλμα Cloud!"); }
+    } catch (e) { alert("Σφάλμα Cloud κατά τη φόρτωση!"); }
 }
 
 async function saveData() {
     try {
         const r = await fetch('https://jsonbin.io' + BIN_ID, {
-            method: "PUT", headers: { "Content-Type": "application/json", "X-Master-Key": API_KEY, "X-Bin-Meta": "false" },
+            method: "PUT", 
+            headers: { 
+                "Content-Type": "application/json", 
+                "X-Master-Key": API_KEY, 
+                "X-Bin-Meta": "false"
+            },
             body: JSON.stringify({ campaigns, numbers, history })
         });
+        if (!r.ok) throw new Error();
         const res = await r.json();
         const data = res.record || res;
         campaigns = data.campaigns || []; numbers = data.numbers || []; history = data.history || [];
         render();
-    } catch (e) { alert("Αποτυχία Cloud!"); }
+    } catch (e) { alert("Αποτυχία Cloud κατά την αποθήκευση!"); }
 }
 
 function showView(id) {
@@ -187,5 +196,3 @@ window.onload = loadData;
 </script>
 </body>
 </html>
-
-

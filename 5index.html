@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DialTrack Cloud</title>
+<style>
+body{font-family:Arial,sans-serif;background:#111;color:#eee;margin:0;min-height:100vh;display:flex}
+.sidebar{width:240px;background:#1b1b1b;padding:16px;box-sizing:border-box;border-right:1px solid #333}
+.main{flex:1;padding:20px;box-sizing:border-box}
+button{cursor:pointer;padding:10px;margin:5px 0;background:#222;color:#eee;border:1px solid #333;border-radius:8px;text-align:left;display:block;width:100%}
+.navbtn.active{background:#2d5d66}
+.card{background:#1a1a1a;border:1px solid #333;border-radius:12px;padding:14px;margin-bottom:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;background:#2d5d66;margin-right:8px}
+input,select,textarea{width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1px solid #444;background:#111;color:#eee;margin-bottom:10px}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);align-items:center;justify-content:center;padding:16px;z-index:100}
+.modal.open{display:flex}
+.modalbox{width:100%;max-width:520px;background:#1a1a1a;border:1px solid #333;border-radius:14px;padding:18px}
+.table{width:100%;border-collapse:collapse}
+.table th,.table td{border-bottom:1px solid #333;padding:10px;text-align:left}
+.hidden{display:none}
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+<h2>DialTrack</h2>
+<button class="navbtn active" onclick="showView('dashboard')">Dashboard</button>
+<button class="navbtn" onclick="showView('campaigns')">Καμπάνιες</button>
+<button class="navbtn" onclick="showView('numbers')">Αριθμοί</button>
+<button class="navbtn" onclick="showView('history')">Ιστορικό</button>
+<button style="background:#721c24;" onclick="resetData()">⚠️ Reset</button>
+</div>
+
+<div class="main">
+<div style="display:flex;gap:10px;margin-bottom:16px">
+<button style="width:auto" onclick="openModal('campModal')">+ Νέα Καμπάνια</button>
+<button style="width:auto" onclick="openModal('numModal')">+ Νέος Αριθμός</button>
+</div>
+
+<div id="dashboard" class="view">
+<div class="card"><h3>Σύνοψη</h3><div id="stats"></div></div>
+<div class="grid" id="campaignGrid"></div>
+</div>
+
+<div id="campaigns" class="view hidden">
+<div class="card"><h3>Λίστα Καμπανιών</h3><div id="campaignList"></div></div>
+</div>
+
+<div id="numbers" class="view hidden">
+<div class="card"><h3>Λίστα Αριθμών</h3><div id="numbersList"></div></div>
+</div>
+
+<div id="history" class="view hidden">
+<div class="card"><h3>Ιστορικό</h3>
+<table class="table">
+<thead><tr><th>Ημ/νία</th><th>Καμπάνια</th><th>Αριθμός</th><th>Σημείωση</th></tr></thead>
+<tbody id="historyBody"></tbody>
+</table>
+</div>
+</div>
+</div>
+
+<!-- Camp Modal -->
+<div class="modal" id="campModal">
+<div class="modalbox">
+<h3>Νέα Καμπάνια</h3>
+<label>Κωδικός</label><input id="campCode">
+<label>Όνομα</label><input id="campName">
+<label>Συνδεδεμένος Αριθμός</label><select id="campNumberSelect"></select>
+<label>Σημείωση</label><textarea id="campNote" rows="2"></textarea>
+<button onclick="saveCampaign()">Αποθήκευση</button>
+<button style="background:#555" onclick="closeModal('campModal')">Κλείσιμο</button>
+</div>
+</div>
+
+<!-- Num Modal -->
+<div class="modal" id="numModal">
+<div class="modalbox">
+<h3>Νέος Αριθμός</h3>
+<label>Αριθμός</label><input id="numValue">
+<label>Ετικέτα</label><input id="numLabel">
+<button onclick="saveNumber()">Αποθήκευση</button>
+<button style="background:#555" onclick="closeModal('numModal')">Κλείσιμο</button>
+</div>
+</div>
+
+<script>
+// ⚠️ ΒΑΛΤΕ ΕΔΩ ΤΟ ID ΠΟΥ ΠΗΡΑΤΕ ΑΠΟ ΤΟ NPOINT.IO
+const CLOUD_ID = "2e2e7aa4cfcd2e59f3e7";
+
+let campaigns = [], numbers = [], history = [];
+
+async function loadData() {
+    try {
+        const r = await fetch('https://npoint.io' + CLOUD_ID);
+        if (!r.ok) throw new Error();
+        const res = await r.json();
+        campaigns = res.campaigns || []; numbers = res.numbers || []; history = res.history || [];
+        render();
+    } catch (e) { 
+        campaigns = []; numbers = []; history = [];
+        render();
+    }
+}
+
+async function saveData() {
+    try {
+        const r = await fetch('https://npoint.io' + CLOUD_ID, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ campaigns, numbers, history })
+        });
+        if (!r.ok) throw new Error();
+        render();
+    } catch (e) { alert("Αποτυχία αποθήκευσης στο Cloud!"); }
+}
+
+function showView(id) {
+    document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+    document.getElementById(id).classList.remove('hidden');
+    document.querySelectorAll('.navbtn').forEach(b => b.classList.toggle('active', b.getAttribute('onclick').includes(id)));
+}
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function render() {
+    document.getElementById('stats').innerHTML = '<div class="badge">Καμπάνιες: ' + campaigns.length + '</div><div class="badge">Αριθμοί: ' + numbers.length + '</div>';
+    let opts = '<option value="">Επιλέξτε Αριθμό</option>';
+    numbers.forEach(n => opts += '<option value="' + n.id + '">' + n.number + '</option>');
+    document.getElementById('campNumberSelect').innerHTML = opts;
+
+    let grid = '', list = '';
+    campaigns.forEach(c => {
+        const n = numbers.find(num => String(num.id) === String(c.active_num_id));
+        grid += '<div class="card"><strong>' + (c.code ? c.code + ' - ' : '') + c.name + '</strong><br><small>Αριθμός: ' + (n ? n.number : 'Χωρίς') + '</small><br><button style="width:auto;padding:4px 8px;margin-top:5px" onclick="deleteItem(\'campaigns\',' + c.id + ')">Διαγραφή</button></div>';
+        list += '<div class="card"><strong>' + c.name + '</strong> - ' + (c.note || '—') + '</div>';
+    });
+    document.getElementById('campaignGrid').innerHTML = grid || 'Καμία καμπάνια';
+    document.getElementById('campaignList').innerHTML = list || 'Καμία καμπάνια';
+
+    let numHtml = '';
+    numbers.forEach(n => numHtml += '<div class="card"><strong>' + n.number + '</strong> (' + (n.label || '—') + ')<br><button style="width:auto;padding:4px 8px;margin-top:5px" onclick="deleteItem(\'numbers\',' + n.id + ')">Διαγραφή</button></div>');
+    document.getElementById('numbersList').innerHTML = numHtml || 'Κανένας αριθμός';
+
+    let histHtml = '';
+    history.forEach(h => {
+        const c = campaigns.find(camp => String(camp.id) === String(h.camp_id));
+        histHtml += '<tr><td>' + new Date(h.created_at).toLocaleDateString('el-GR') + '</td><td>' + (c ? c.name : '—') + '</td><td>' + h.number + '</td><td>' + h.note + '</td></tr>';
+    });
+    document.getElementById('historyBody').innerHTML = histHtml || '<tr><td colspan="4">Κενό ιστορικό</td></tr>';
+}
+
+function saveCampaign() {
+    const name = document.getElementById('campName').value.trim();
+    if(!name) return alert('Βάλε όνομα!');
+    const newCamp = {
+        id: Date.now(),
+        code: document.getElementById('campCode').value.trim(),
+        name: name,
+        active_num_id: document.getElementById('campNumberSelect').value,
+        note: document.getElementById('campNote').value.trim()
+    };
+    campaigns.push(newCamp);
+    const n = numbers.find(num => String(num.id) === String(newCamp.active_num_id));
+    history.unshift({ id: Date.now()+1, camp_id: newCamp.id, number: n ? n.number : 'Χωρίς', note: 'Νέα Καμπάνια', created_at: new Date().toISOString() });
+    closeModal('campModal'); saveData();
+}
+
+// ⚠️ Αν η εφαρμογή ανοίξει χωρίς σφάλμα αλλά δεν αποθηκεύει, βεβαιώσου ότι στο npoint.io πάτησες "Save" έχοντας βάλει μέσα τη σωστή δομή JSON.
+
+function saveNumber() {
+    const val = document.getElementById('numValue').value.trim();
+    if(!val) return alert('Βάλε αριθμό!');
+    numbers.push({ id: Date.now(), number: val, label: document.getElementById('numLabel').value.trim() });
+    closeModal('numModal'); saveData();
+}
+
+function deleteItem(type, id) {
+    if(!confirm('Διαγραφή;')) return;
+    if(type === 'campaigns') { campaigns = campaigns.filter(c => String(c.id) !== String(id)); }
+    else { numbers = numbers.filter(n => String(n.id) !== String(id)); }
+    saveData();
+}
+
+function resetData() { if(confirm('⚠️ Reset;')) { campaigns = []; numbers = []; history = []; saveData(); } }
+
+window.onload = loadData;
+</script>
+</body>
+</html>
